@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>شاهد في الظلام</title>
+<style>
+  :root{
+    --bg:#0b1119;
+    --panel:#131b27;
+    --raise:#1b2636;
+    --line:#26344a;
+    --text:#e9eef5;
+    --muted:#8b9db4;
+    --accent:#ffb454;
+    --accent-bg:#2b2110;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--text);
+    font-family:"Noto Sans Arabic","Segoe UI",Tahoma,system-ui,sans-serif;
+    -webkit-tap-highlight-color:transparent}
+  body{display:grid;grid-template-rows:minmax(0,1fr) auto;height:100vh;height:100dvh;overflow:hidden}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* المعاينة */
+  .stage{position:relative;overflow:hidden;background:#05080c;min-height:0}
+  #out{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block}
+  .frame{position:absolute;inset:12px;pointer-events:none}
+  .frame i{position:absolute;width:22px;height:22px;border:0 solid var(--accent);opacity:.9}
+  .frame i:nth-child(1){top:0;left:0;border-top-width:2px;border-left-width:2px}
+  .frame i:nth-child(2){top:0;right:0;border-top-width:2px;border-right-width:2px}
+  .frame i:nth-child(3){bottom:0;left:0;border-bottom-width:2px;border-left-width:2px}
+  .frame i:nth-child(4){bottom:0;right:0;border-bottom-width:2px;border-right-width:2px}
+
+  .intro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:flex-start;gap:14px;padding:28px 24px;text-align:center;background:#05080c;overflow:auto}
+  .intro > :first-child{margin-top:auto}
+  .intro > :last-child{margin-bottom:auto}
+  .intro h1{font-size:clamp(30px,7vw,52px);font-weight:800;line-height:1.15;letter-spacing:0}
+  .intro p{max-width:34ch;color:var(--muted);font-size:15px;line-height:1.8}
+  .intro .fine{font-size:13px}
+  .intro .msg{color:#ffb4a8;font-size:14px;line-height:1.9;max-width:42ch;text-align:start;white-space:pre-line;
+    background:#1d1417;border:1px solid #4a2a2e;border-radius:10px;padding:12px 14px}
+  .msg:empty{display:none}
+  .intro[hidden]{display:none}
+  .intro .btn[hidden]{display:none}
+  .status{position:absolute;inset-inline:16px;bottom:16px;padding:10px 12px;border-radius:10px;
+    background:rgba(11,17,25,.92);border:1px solid var(--line);font-size:13.5px;line-height:1.7;text-align:center}
+  .status[hidden]{display:none}
+
+  /* اللوحة */
+  .panel{background:var(--panel);border-top:1px solid var(--line);
+    padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+    max-height:48vh;max-height:48dvh;overflow:auto;display:grid;gap:12px;align-content:start}
+  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{flex:1;min-height:44px;background:transparent;color:var(--muted);border:0;
+    font:inherit;font-size:15px;cursor:pointer}
+  .seg button+button{border-inline-start:1px solid var(--line)}
+  .seg button[aria-pressed="true"]{background:var(--accent-bg);color:var(--accent);font-weight:700}
+  .hint{color:var(--muted);font-size:12.5px;line-height:1.6;margin-top:-6px}
+
+  .actions{display:grid;grid-template-columns:1.3fr 1fr;gap:8px}
+  .btn{min-height:46px;border-radius:10px;border:1px solid var(--line);background:var(--raise);
+    color:var(--text);font:inherit;font-size:15px;cursor:pointer;padding:0 14px;
+    touch-action:manipulation;user-select:none;-webkit-user-select:none}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#1b1206;font-weight:700}
+  .btn.hold{grid-column:1/-1;touch-action:none}
+  .btn.hold.on{background:var(--accent-bg);color:var(--accent);border-color:var(--accent)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .btn.start{min-height:52px;padding:0 34px;font-size:17px;margin-top:6px}
+
+  details{border-top:1px solid var(--line);padding-top:10px}
+  summary{cursor:pointer;color:var(--muted);font-size:14px;min-height:32px;display:flex;align-items:center}
+  .sliders{display:grid;gap:6px;margin-top:6px}
+  .row label{display:flex;justify-content:space-between;font-size:14px;color:var(--text)}
+  .row output{color:var(--accent);font-variant-numeric:tabular-nums}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:30px;background:transparent}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;background:var(--line);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+    background:var(--accent);border:0;margin-top:-9px}
+  input[type=range]::-moz-range-track{height:4px;background:var(--line);border-radius:2px}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent);border:0}
+  .exp{display:grid;gap:8px;margin-top:8px}
+  .exp label{display:flex;gap:10px;align-items:center;font-size:14px;min-height:34px}
+  .exp input{width:20px;height:20px;accent-color:var(--accent)}
+  .exp small{display:block;color:var(--muted);font-size:12.5px;line-height:1.6;padding-inline-start:30px}
+  .exp [hidden]{display:none}
+  .model{margin-top:10px;display:grid;gap:6px;font-size:14px}
+  .model small{color:var(--muted);font-size:12.5px;line-height:1.6}
+  input[type=url]{width:100%;min-height:42px;border-radius:10px;border:1px solid var(--line);
+    background:var(--raise);color:var(--text);padding:0 12px;font:inherit;font-size:13px;direction:ltr}
+  input[type=file]{font-size:13px;color:var(--muted);max-width:100%}
+
+  @media (min-width:900px){
+    body{grid-template-rows:none;grid-template-columns:minmax(0,1fr) 370px}
+    .panel{max-height:none;border-top:0;border-inline-start:1px solid var(--line);padding:20px}
+  }
+</style>
+</head>
+<body>
+
+<section class="stage" aria-label="معاينة الكاميرا">
+  <canvas id="out" width="640" height="480"></canvas>
+  <div class="frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <p class="status" id="status" role="status" hidden></p>
+
+  <div class="intro" id="intro">
+    <h1>شاهد في الظلام</h1>
+    <p>تُضيء هذه الصفحة الصورة القادمة من كاميرتك لحظة بلحظة. المعالجة تتم على جهازك، ولا يُرسل أي شيء إلى الإنترنت.</p>
+    <button class="btn primary start" id="start">شغّل الكاميرا</button>
+    <p class="msg" id="msg" role="alert"></p>
+    <button class="btn" id="copyLink" hidden>نسخ رابط الصفحة</button>
+    <p class="fine">يعمل مع كاميرا هاتفك العادية. ثبّت الهاتف على حامل أو سند لتظهر أوضح صورة، فالفلتر يجمع عدة إطارات ويحتاج ثباتًا. في الظلام التام لا يمكن لأي فلتر إظهار شيء.</p>
+  </div>
+</section>
+
+<section class="panel" aria-label="أدوات التحكم">
+  <div class="seg" role="group" aria-label="طريقة المعالجة">
+    <button data-engine="classic" aria-pressed="false">سريعة</button>
+    <button data-engine="retinex" aria-pressed="true">Retinex</button>
+    <button data-engine="sci" aria-pressed="false">SCI</button>
+  </div>
+  <p class="hint" id="hint"></p>
+
+  <div class="seg" role="group" aria-label="شدة الإضاءة">
+    <button data-preset="light" aria-pressed="false">خفيفة</button>
+    <button data-preset="mid" aria-pressed="true">متوسطة</button>
+    <button data-preset="strong" aria-pressed="false">شديدة</button>
+  </div>
+
+  <div class="seg" role="group" aria-label="نمط الصورة">
+    <button data-mode="color" aria-pressed="true">ألوان طبيعية</button>
+    <button data-mode="night" aria-pressed="false">أخضر ليلي</button>
+  </div>
+
+  <div class="actions">
+    <button class="btn primary" id="snap" disabled>التقاط صورة</button>
+    <button class="btn" id="flip" disabled>قلب الكاميرا</button>
+    <button class="btn hold" id="orig" disabled>أمسك هنا لرؤية الصورة الأصلية</button>
+  </div>
+
+  <details>
+    <summary>ضبط يدوي</summary>
+    <div class="sliders">
+      <div class="row">
+        <label for="gain">السطوع <output id="o-gain"></output></label>
+        <input type="range" id="gain" min="10" max="80" step="1" value="40">
+      </div>
+      <div class="row">
+        <label for="shadow">رفع الظلال <output id="o-shadow"></output></label>
+        <input type="range" id="shadow" min="0" max="100" step="1" value="55">
+      </div>
+      <div class="row">
+        <label for="clip">وضوح التفاصيل (للطريقة السريعة) <output id="o-clip"></output></label>
+        <input type="range" id="clip" min="0" max="8" step="0.5" value="3">
+      </div>
+      <div class="row">
+        <label for="dn">تقليل الضجيج <output id="o-dn"></output></label>
+        <input type="range" id="dn" min="0" max="85" step="1" value="65">
+      </div>
+    </div>
+
+    <div class="exp" id="expRow" hidden>
+      <div id="expA">
+        <label><input type="checkbox" id="exp" checked> رفع تعريض الكاميرا نفسها</label>
+        <small>يجعل الكاميرا نفسها تلتقط ضوءًا أكثر، وقد ينقص عدد الإطارات في الثانية.</small>
+      </div>
+      <div id="expB">
+        <label><input type="checkbox" id="long"> تعريض طويل للظلام الشديد</label>
+        <small>يفتح الغالق مدة أطول ويرفع الحساسية. ثبّت الهاتف على حامل، وأطفئه إن ظهرت الصورة ساطعة جدًا في مكان مضاء.</small>
+      </div>
+    </div>
+
+    <div class="model">
+      <label for="modelUrl">رابط ملف نموذج SCI (اختياري)</label>
+      <input type="url" id="modelUrl" placeholder="https://.../model.onnx">
+      <label for="modelFile">أو اختر ملف النموذج (.onnx) من جهازك</label>
+      <input type="file" id="modelFile" accept=".onnx">
+      <small>لا يلزم إلا إن تعذّر تنزيل النموذج تلقائيًا.</small>
+    </div>
+  </details>
+</section>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const out = $('out'), octx = out.getContext('2d');
+  const video = document.createElement('video');
+  video.setAttribute('playsinline', ''); video.muted = true;
+  const work = document.createElement('canvas');
+  const wctx = work.getContext('2d', { willReadFrequently: true });
+
+  /* ---------- الإعدادات ---------- */
+  const S = { gain: 4, gamma: 0.59, clip: 3, denoise: 0.5, mode: 'color', orig: false, engine: 'retinex' };
+  const PRESETS = { light: [20, 35, 2, 40], mid: [40, 55, 3, 65], strong: [70, 70, 4, 75] };
+  const HINTS = {
+    classic: 'CLAHE مع غاما: الأسرع، لكنه يزيد الحبيبات وقد يفرط في الإضاءة إن لم تكن الغرفة شديدة الظلام.',
+    retinex: 'خريطة إضاءة تلقائية: أنعم وأقرب للطبيعي، وتعمل بلا تنزيل.',
+    sci: 'شبكة عصبية SCI: يُنزَّل نموذجها صغير الحجم أول مرة، ثم يعمل على جهازك.'
+  };
+  const el = { gain: $('gain'), shadow: $('shadow'), clip: $('clip'), dn: $('dn') };
+  let dirty = true;
+
+  function readSliders() {
+    S.gain = el.gain.value / 10;
+    S.gamma = 1 - el.shadow.value * 0.0075;
+    S.clip = +el.clip.value;
+    S.denoise = el.dn.value / 100;
+    $('o-gain').textContent = S.gain.toFixed(1) + '×';
+    $('o-shadow').textContent = el.shadow.value + '%';
+    $('o-clip').textContent = S.clip === 0 ? 'مُعطّل' : S.clip;
+    $('o-dn').textContent = el.dn.value + '%';
+    dirty = true;
+  }
+  function press(group, attr, val) {
+    group.querySelectorAll('[' + attr + ']').forEach(b =>
+      b.setAttribute('aria-pressed', b.getAttribute(attr) === val ? 'true' : 'false'));
+  }
+  function setEngine(name) {
+    S.engine = name;
+    press(document.querySelector('[data-engine]').closest('.seg'), 'data-engine', name);
+    $('hint').textContent = HINTS[name];
+  }
+  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => {
+    const v = PRESETS[b.dataset.preset];
+    el.gain.value = v[0]; el.shadow.value = v[1]; el.clip.value = v[2]; el.dn.value = v[3];
+    readSliders(); press(b.closest('.seg'), 'data-preset', b.dataset.preset);
+  }));
+  document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+    S.mode = b.dataset.mode; press(b.closest('.seg'), 'data-mode', S.mode);
+  }));
+  Object.values(el).forEach(i => i.addEventListener('input', () => {
+    readSliders();
+    document.querySelectorAll('[data-preset]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+  }));
+  readSliders(); setEngine('retinex');
+
+  let statusTimer = 0;
+  function status(t, ms) {
+    clearTimeout(statusTimer);
+    $('status').textContent = t; $('status').hidden = !t;
+    if (t && ms) statusTimer = setTimeout(() => { $('status').hidden = true; }, ms);
+  }
+
+  /* ---------- المخازن ---------- */
+  const TX = 8, TY = 6, LB = 8;
+  let T = 640, W = 640, H = 480, first = true;            // T: أطول ضلع لدقة المعالجة
+  let acc, YO, YN, hist, lutT, X0, X1, WXa, Yt0, Yt1, WYa, TXI, TYI;
+  let LW = 0, LH = 0, lowA, lowB, lowT, LX0, LX1, LWX, LTX, LY0, LY1, LWY, LTY;
+  const lut = new Uint8ClampedArray(256), gLut = new Float32Array(1024);
+
+  function fillAxis(n, m, a0, a1, wt, ti) {
+    for (let i = 0; i < n; i++) {
+      ti[i] = Math.min(m - 1, Math.floor(i * m / n));
+      const f = (i + 0.5) * m / n - 0.5; let k = Math.floor(f), w = f - k, k1;
+      if (k < 0) { k = 0; k1 = 0; w = 0; }
+      else if (k >= m - 1) { k = m - 1; k1 = m - 1; w = 0; }
+      else k1 = k + 1;
+      a0[i] = k; a1[i] = k1; wt[i] = w;
+    }
+  }
+
+  function setupSize() {
+    const vw = video.videoWidth || 640, vh = video.videoHeight || 480, sc = T / Math.max(vw, vh);
+    W = Math.max(16, Math.round(vw * sc)); H = Math.max(16, Math.round(vh * sc));
+    work.width = out.width = W; work.height = out.height = H;
+    acc = new Float32Array(W * H * 3);
+    YO = new Uint8ClampedArray(W * H); YN = new Uint8ClampedArray(W * H);
+    hist = new Float32Array(TX * TY * 256); lutT = new Uint8Array(TX * TY * 256);
+    X0 = new Uint8Array(W); X1 = new Uint8Array(W); WXa = new Float32Array(W); TXI = new Uint8Array(W);
+    Yt0 = new Uint8Array(H); Yt1 = new Uint8Array(H); WYa = new Float32Array(H); TYI = new Uint8Array(H);
+    fillAxis(W, TX, X0, X1, WXa, TXI);
+    fillAxis(H, TY, Yt0, Yt1, WYa, TYI);
+    LW = Math.ceil(W / LB); LH = Math.ceil(H / LB);
+    lowA = new Float32Array(LW * LH); lowB = new Float32Array(LW * LH); lowT = new Float32Array(LW * LH);
+    LX0 = new Uint16Array(W); LX1 = new Uint16Array(W); LWX = new Float32Array(W); LTX = new Uint16Array(W);
+    LY0 = new Uint16Array(H); LY1 = new Uint16Array(H); LWY = new Float32Array(H); LTY = new Uint16Array(H);
+    fillAxis(W, LW, LX0, LX1, LWX, LTX);
+    fillAxis(H, LH, LY0, LY1, LWY, LTY);
+    first = true; sciFirst = true;
+    if (sciSess) sciAlloc();
+  }
+
+  /* ---------- المعالجة (سريعة + Retinex) ---------- */
+  function buildTables() {
+    for (let i = 0; i < 256; i++) {
+      const v = Math.min(1, i / 255 * S.gain);
+      lut[i] = Math.round(255 * Math.pow(v, S.gamma));
+    }
+    // Retinex: كسب = L^(gamma-1)، مع رفع إضافي يتلاشى بسرعة في المناطق المضاءة
+    for (let k = 0; k < 1024; k++) {
+      const L = Math.max(k / 1023, 0.03);
+      gLut[k] = Math.min(10, Math.pow(L, S.gamma - 1)) * Math.pow(S.gain / 2, Math.pow(1 - L, 3));
+    }
+  }
+
+  function clahe() {
+    hist.fill(0);
+    for (let y = 0; y < H; y++) {
+      const base = TYI[y] * TX; let i = y * W;
+      for (let x = 0; x < W; x++, i++) hist[((base + TXI[x]) << 8) + YN[i]]++;
+    }
+    for (let t = 0; t < TX * TY; t++) {
+      const o = t << 8; let area = 0;
+      for (let v = 0; v < 256; v++) area += hist[o + v];
+      const lim = Math.max(1, S.clip * area / 256); let ex = 0;
+      for (let v = 0; v < 256; v++) if (hist[o + v] > lim) { ex += hist[o + v] - lim; hist[o + v] = lim; }
+      const add = ex / 256; let cum = 0;
+      for (let v = 0; v < 256; v++) { cum += hist[o + v] + add; lutT[o + v] = Math.min(255, Math.round(cum * 255 / Math.max(1, area))); }
+    }
+    for (let y = 0; y < H; y++) {
+      const r0 = Yt0[y] * TX, r1 = Yt1[y] * TX, wy = WYa[y]; let i = y * W;
+      for (let x = 0; x < W; x++, i++) {
+        const v = YN[i], c0 = X0[x], c1 = X1[x], wx = WXa[x];
+        const a = lutT[((r0 + c0) << 8) + v], b = lutT[((r0 + c1) << 8) + v];
+        const c = lutT[((r1 + c0) << 8) + v], d = lutT[((r1 + c1) << 8) + v];
+        const top = a + (b - a) * wx, bot = c + (d - c) * wx;
+        YN[i] = top + (bot - top) * wy;
+      }
+    }
+  }
+
+  function blur3(src, dst, tmp) {
+    for (let y = 0; y < LH; y++) {
+      const o = y * LW;
+      for (let x = 0; x < LW; x++)
+        tmp[o + x] = (src[o + Math.max(0, x - 1)] + src[o + x] + src[o + Math.min(LW - 1, x + 1)]) / 3;
+    }
+    for (let y = 0; y < LH; y++) {
+      const o = y * LW, u = Math.max(0, y - 1) * LW, dn = Math.min(LH - 1, y + 1) * LW;
+      for (let x = 0; x < LW; x++) dst[o + x] = (tmp[u + x] + tmp[o + x] + tmp[dn + x]) / 3;
+    }
+  }
+
+  function min3(src, dst) {                       // تآكل 3×3: يمنع ظهور هالة معتمة حول الأضواء الصغيرة
+    for (let y = 0; y < LH; y++) {
+      const u = Math.max(0, y - 1) * LW, o = y * LW, dn = Math.min(LH - 1, y + 1) * LW;
+      for (let x = 0; x < LW; x++) {
+        const xl = Math.max(0, x - 1), xr = Math.min(LW - 1, x + 1);
+        let m = src[u + xl];
+        const c = [src[u + x], src[u + xr], src[o + xl], src[o + x], src[o + xr], src[dn + xl], src[dn + x], src[dn + xr]];
+        for (let i = 0; i < 8; i++) if (c[i] < m) m = c[i];
+        dst[o + x] = m;
+      }
+    }
+  }
+
+  function retinex(d) {
+    // خريطة الإضاءة: متوسط أعلى قيمة لونية في كل كتلة، ثم تآكل وتنعيم
+    lowA.fill(0); lowB.fill(0);
+    for (let y = 0; y < H; y += 2) {
+      const row = LTY[y] * LW; let q = y * W * 3;
+      for (let x = 0; x < W; x += 2, q += 6) {
+        const r = acc[q], g = acc[q + 1], b = acc[q + 2];
+        const m = r > g ? (r > b ? r : b) : (g > b ? g : b), k = row + LTX[x];
+        lowA[k] += m; lowB[k]++;
+      }
+    }
+    for (let k = 0; k < lowA.length; k++) lowA[k] = lowB[k] ? lowA[k] / (lowB[k] * 255) : 0;
+    min3(lowA, lowB); blur3(lowB, lowA, lowT); blur3(lowA, lowB, lowT);
+    const night = S.mode === 'night';
+    for (let y = 0, p = 0; y < H; y++) {
+      const r0 = LY0[y] * LW, r1 = LY1[y] * LW, wy = LWY[y]; let q = y * W * 3;
+      for (let x = 0; x < W; x++, p += 4, q += 3) {
+        const c0 = LX0[x], c1 = LX1[x], wx = LWX[x];
+        const a = lowB[r0 + c0], b = lowB[r0 + c1], c = lowB[r1 + c0], e = lowB[r1 + c1];
+        const t = a + (b - a) * wx, u = c + (e - c) * wx;
+        const L = t + (u - t) * wy;
+        let g = gLut[Math.min(1023, (L * 1023) | 0)];
+        const ar = acc[q], ag = acc[q + 1], ab = acc[q + 2];
+        const gm = 255 / ((ar > ag ? (ar > ab ? ar : ab) : (ag > ab ? ag : ab)) + 1);   // لا تتجاوز 255 مع حفظ اللون
+        if (g > gm) g = gm;
+        let R = ar * g, G = ag * g, B = ab * g;
+        const yy = 0.299 * R + 0.587 * G + 0.114 * B;
+        if (night) { d[p] = yy * 0.22; d[p + 1] = yy; d[p + 2] = yy * 0.3; }
+        else {
+          const sat = g > 1 ? 1 / (1 + 0.18 * (g - 1)) : 1;     // خفّف اللون حيث الكسب عالٍ (ضجيج لوني)
+          d[p] = yy + (R - yy) * sat; d[p + 1] = yy + (G - yy) * sat; d[p + 2] = yy + (B - yy) * sat;
+        }
+        d[p + 3] = 255;
+      }
+    }
+  }
+
+  function process(d) {
+    if (dirty) { buildTables(); dirty = false; }
+    const n = W * H, keep = 1 - S.denoise, f = first, ret = S.engine !== 'classic';
+    for (let i = 0, p = 0, q = 0; i < n; i++, p += 4, q += 3) {
+      const r = d[p], g = d[p + 1], b = d[p + 2];
+      let R, G, B;
+      if (f) { R = acc[q] = r; G = acc[q + 1] = g; B = acc[q + 2] = b; }
+      else {
+        const dm = (Math.abs(r - acc[q]) + Math.abs(g - acc[q + 1]) + Math.abs(b - acc[q + 2])) / 3;
+        let w = keep;
+        if (dm > 8) { const m = (dm - 8) / 24; w = m >= 1 ? 1 : w + (1 - w) * m; }   // حركة: لا تُبقِ أثرًا
+        R = acc[q] += (r - acc[q]) * w; G = acc[q + 1] += (g - acc[q + 1]) * w; B = acc[q + 2] += (b - acc[q + 2]) * w;
+      }
+      if (!ret) {
+        const y = (0.299 * R + 0.587 * G + 0.114 * B + 0.5) | 0;
+        YO[i] = y; YN[i] = lut[y];
+      }
+    }
+    first = false;
+    if (ret) { retinex(d); return; }
+    if (S.clip > 0) clahe();
+    const night = S.mode === 'night';
+    for (let i = 0, p = 0, q = 0; i < n; i++, p += 4, q += 3) {
+      const yn = YN[i];
+      if (night) { d[p] = yn * 0.22; d[p + 1] = yn; d[p + 2] = yn * 0.3; }
+      else {
+        const y = YO[i]; let k = yn / (y + 1); if (k > 3) k = 3;
+        d[p] = yn + (acc[q] - y) * k; d[p + 1] = yn + (acc[q + 1] - y) * k; d[p + 2] = yn + (acc[q + 2] - y) * k;
+      }
+      d[p + 3] = 255;
+    }
+  }
+
+  /* ---------- SCI: شبكة عصبية عبر onnxruntime-web ---------- */
+  const ORT_BASE = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/';
+  const MODEL_URLS = [
+    'model.onnx',                                                            // إن وضعته بجانب الصفحة
+    'https://mdturp.github.io/low-light-image-enhancement/model.onnx',
+    'https://raw.githubusercontent.com/Kazuhito00/SCI-ONNX-Sample/main/model/sci_difficult_512x512.onnx',
+    'https://raw.githubusercontent.com/Kazuhito00/SCI-ONNX-Sample/main/model/sci_512x512.onnx'
+  ];
+  let sciSess = null, sciIn = 'input', sciOutName = 'output', sciDyn = true;
+  let sciLoading = false, sciBusy = false, sciFirst = true, sciScale = 0, sciW = 0, sciH = 0, sciAcc, sciBuf, sciImg;
+  const sciCv = document.createElement('canvas'), sciCx = sciCv.getContext('2d', { willReadFrequently: true });
+  const sciOut = document.createElement('canvas'), sciOx = sciOut.getContext('2d');
+
+  function sciAlloc() {
+    const w = sciDyn ? W : 512, h = sciDyn ? H : 512;
+    if (w === sciW && h === sciH && sciAcc) return;
+    sciW = w; sciH = h;
+    sciCv.width = sciOut.width = w; sciCv.height = sciOut.height = h;
+    sciAcc = new Float32Array(3 * w * h); sciBuf = new Float32Array(3 * w * h);
+    sciImg = sciOx.createImageData(w, h); sciFirst = true;
+  }
+  function loadScript(src) {
+    return new Promise((res, rej) => {
+      if (window.ort) return res();
+      const s = document.createElement('script');
+      s.src = src; s.onload = res;
+      s.onerror = () => rej(new Error('تعذّر تحميل مكتبة onnxruntime، تأكد من اتصالك بالإنترنت.'));
+      document.head.appendChild(s);
+    });
+  }
+  // يفتح الجلسة ويختبرها فعليًا: حجم متغير أولًا ثم 512×512 الثابت
+  async function makeSession(buf) {
+    const sess = await ort.InferenceSession.create(buf, { executionProviders: ['wasm'] });
+    const inName = sess.inputNames[0], outs = sess.outputNames;
+    const outName = outs.includes('output') ? 'output' : outs[outs.length - 1];
+    for (const [w, h] of [[64, 48], [512, 512]]) {
+      try {
+        const r = await sess.run({ [inName]: new ort.Tensor('float32', new Float32Array(3 * w * h).fill(0.1), [1, 3, h, w]) });
+        const t = r[outName];
+        if (t && t.data.length === 3 * w * h && isFinite(t.data[0])) return { sess, inName, outName, dyn: w === 64 };
+      } catch (e) { /* جرّب الشكل التالي */ }
+    }
+    throw new Error('شكل مدخلات النموذج غير مدعوم.');
+  }
+  function useSession(m) {
+    sciSess = m.sess; sciIn = m.inName; sciOutName = m.outName; sciDyn = m.dyn;
+    sciScale = 0; sciW = 0; sciAlloc();
+    status('SCI جاهز. يعمل بقوة ثابتة، ويؤثر عليه «تقليل الضجيج» ونمط الصورة فقط.', 7000);
+  }
+  async function loadSci(fileBuf) {
+    if (sciLoading || (sciSess && !fileBuf)) return;
+    sciLoading = true;
+    try {
+      status('جارٍ تحميل محرّك الذكاء الاصطناعي…');
+      await loadScript(ORT_BASE + 'ort.min.js');
+      ort.env.wasm.wasmPaths = ORT_BASE; ort.env.wasm.numThreads = 1;
+      let done = null;
+      if (fileBuf) done = await makeSession(fileBuf);
+      else {
+        const custom = $('modelUrl').value.trim();
+        const web = /^https?:$/.test(location.protocol);
+        for (const u of (custom ? [custom] : []).concat(MODEL_URLS.filter(x => web || /^https?:/.test(x)))) {
+          try {
+            status('جارٍ تنزيل النموذج…');
+            const r = await fetch(u);
+            if (!r.ok) continue;
+            const b = await r.arrayBuffer();
+            if (b.byteLength < 500) continue;
+            done = await makeSession(b); break;
+          } catch (e) { /* الرابط التالي */ }
+        }
+      }
+      if (!done) throw new Error('لم أستطع تنزيل ملف النموذج. ضع رابطه أو اختر الملف من «ضبط يدوي».');
+      useSession(done);
+    } catch (e) {
+      status('تعذّر تشغيل SCI: ' + e.message + ' تم استخدام Retinex بدلًا منه.');
+      setEngine('retinex');
+    } finally { sciLoading = false; }
+  }
+
+  async function sciFrame() {
+    if (sciBusy) return;
+    sciBusy = true;
+    try {
+      sciAlloc();
+      sciCx.save();
+      if (facing === 'user') { sciCx.translate(sciW, 0); sciCx.scale(-1, 1); }
+      sciCx.drawImage(video, 0, 0, sciW, sciH);
+      sciCx.restore();
+      if (S.orig) { octx.drawImage(sciCv, 0, 0, W, H); return; }
+      const d = sciCx.getImageData(0, 0, sciW, sciH).data, n = sciW * sciH, keep = 1 - S.denoise;
+      for (let i = 0, p = 0; i < n; i++, p += 4) {
+        for (let c = 0; c < 3; c++) {
+          const k = c * n + i, v = d[p + c];
+          if (sciFirst) sciAcc[k] = v;
+          else {
+            const dm = Math.abs(v - sciAcc[k]); let w = keep;
+            if (dm > 8) { const m = (dm - 8) / 24; w = m >= 1 ? 1 : w + (1 - w) * m; }
+            sciAcc[k] += (v - sciAcc[k]) * w;
+          }
+          sciBuf[k] = sciAcc[k] / 255;
+        }
+      }
+      sciFirst = false;
+      const res = await sciSess.run({ [sciIn]: new ort.Tensor('float32', sciBuf, [1, 3, sciH, sciW]) });
+      const o = res[sciOutName].data;
+      if (!sciScale) { let mx = 0; for (let i = 0; i < o.length; i += 97) if (o[i] > mx) mx = o[i]; sciScale = mx > 1.5 ? 1 : 255; }
+      const px = sciImg.data, night = S.mode === 'night';
+      for (let i = 0, p = 0; i < n; i++, p += 4) {
+        const r = o[i] * sciScale, g = o[n + i] * sciScale, b = o[2 * n + i] * sciScale;
+        if (night) { const y = 0.299 * r + 0.587 * g + 0.114 * b; px[p] = y * 0.22; px[p + 1] = y; px[p + 2] = y * 0.3; }
+        else { px[p] = r; px[p + 1] = g; px[p + 2] = b; }
+        px[p + 3] = 255;
+      }
+      sciOx.putImageData(sciImg, 0, 0);
+      octx.drawImage(sciOut, 0, 0, W, H);
+      if (sciDyn) adapt(6);
+    } catch (e) {
+      status('خطأ في SCI: ' + e.message + ' تم استخدام Retinex بدلًا منه.');
+      sciSess = null; setEngine('retinex');
+    } finally { sciBusy = false; }
+  }
+
+  document.querySelectorAll('[data-engine]').forEach(b => b.addEventListener('click', () => {
+    status(''); setEngine(b.dataset.engine);
+    if (b.dataset.engine === 'sci') loadSci();
+  }));
+  $('modelFile').addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    status(''); setEngine('sci'); sciSess = null;
+    loadSci(await f.arrayBuffer());
+  });
+
+  /* ---------- الكاميرا ---------- */
+  let stream = null, facing = 'environment', running = false, sid = 0, frames = 0, t0 = 0, track = null, caps = {};
+
+  function setMsg(t) { $('msg').textContent = t; }
+
+  /* ---------- تشخيص صلاحية الكاميرا ---------- */
+  const UA = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(UA);
+  const inApp = /FBAN|FBAV|Instagram|Line\/|Telegram|WhatsApp|Snapchat|MicroMessenger|TikTok|Twitter|Claude|; wv\)/i.test(UA);
+  const inFrame = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+  const STEPS = {
+    ios: '١) اضغط «aA» في شريط العنوان ← إعدادات الموقع ← الكاميرا ← السماح.\n٢) إن لم تظهر: الإعدادات ← Safari ← الكاميرا ← اسأل.\n٣) أعد تحميل الصفحة ثم اضغط «شغّل الكاميرا».',
+    android: '١) اضغط أيقونة القفل (أو الإعدادات) بجانب عنوان الصفحة ← الأذونات ← الكاميرا ← السماح.\n٢) أو: Chrome ← ⋮ ← الإعدادات ← إعدادات الموقع ← الكاميرا، وتأكد أن الموقع ليس في قائمة «محظور».\n٣) أعد تحميل الصفحة ثم اضغط «شغّل الكاميرا».',
+    desktop: '١) اضغط أيقونة القفل بجانب عنوان الصفحة ← الكاميرا ← السماح.\n٢) أعد تحميل الصفحة ثم اضغط «شغّل الكاميرا».'
+  };
+  const steps = () => isIOS ? STEPS.ios : isAndroid ? STEPS.android : STEPS.desktop;
+  let copyNeeded = false;
+
+  function policyBlocked() {
+    try {
+      const p = document.permissionsPolicy || document.featurePolicy;
+      return !!(p && p.allowsFeature && !p.allowsFeature('camera'));
+    } catch (e) { return false; }
+  }
+  async function permState() {
+    try { return (await navigator.permissions.query({ name: 'camera' })).state; } catch (e) { return 'unknown'; }
+  }
+  async function explain() {
+    copyNeeded = false;
+    if (!window.isSecureContext)
+      return 'المتصفح يمنع الكاميرا في الصفحات غير الآمنة. افتح الصفحة من رابط يبدأ بـ https، أو من localhost.';
+    const st = await permState();
+    if (policyBlocked() || (inFrame && st !== 'denied')) {
+      copyNeeded = true;
+      return 'هذه الصفحة مفتوحة داخل إطار أو معاينة (مثل معاينة الملفات داخل تطبيق)، وهذا يمنعها من استخدام الكاميرا مهما سمحت.\nافتحها مباشرة في متصفح الهاتف (Chrome أو Safari) من رابط https.';
+    }
+    if (st === 'denied') return 'الكاميرا محظورة لهذا الموقع في إعدادات المتصفح. لتفعيلها:\n' + steps();
+    let m = 'لم تكتمل صلاحية الكاميرا. اضغط «شغّل الكاميرا» ثم اختر «السماح» في النافذة التي تظهر. إن لم تظهر نافذة، أو كنت قد رفضتها سابقًا:\n' + steps();
+    if (inApp) {
+      copyNeeded = true;
+      m = 'يبدو أنك تفتح الصفحة داخل متصفح مدمج في تطبيق، وهو غالبًا لا يتيح الكاميرا. افتح الرابط في Chrome أو Safari.\n\n' + m;
+    }
+    return m;
+  }
+  function showFail(text) {                        // أظهر الرسالة حتى لو كانت الشاشة الأولى مخفية (مثل قلب الكاميرا)
+    $('intro').hidden = false; setMsg(text);
+    $('copyLink').hidden = !(copyNeeded && /^https?:$/.test(location.protocol));
+  }
+  $('copyLink').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(location.href); $('copyLink').textContent = 'تم النسخ'; }
+    catch (e) { window.prompt('انسخ الرابط:', location.href); }
+  });
+  (async () => { if (!window.isSecureContext || policyBlocked()) showFail(await explain()); })();
+
+  async function start() {
+    setMsg(''); stopStream();
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showFail(window.isSecureContext ? 'هذا المتصفح لا يتيح الوصول إلى الكاميرا. جرّب Chrome أو Safari حديثًا.' : await explain());
+      return;
+    }
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 },
+                 frameRate: { ideal: 15, max: 30 } }, audio: false
+      });
+    } catch (e) {
+      if (e.name === 'NotAllowedError' || e.name === 'SecurityError') { showFail(await explain()); return; }
+      const m = {
+        NotFoundError: 'لم يتم العثور على كاميرا في هذا الجهاز.',
+        NotReadableError: 'الكاميرا مستخدمة من تطبيق آخر. أغلقه ثم أعد المحاولة.',
+        OverconstrainedError: 'الكاميرا المطلوبة غير متاحة. جرّب زر قلب الكاميرا.'
+      };
+      copyNeeded = false; showFail(m[e.name] || 'تعذّر تشغيل الكاميرا: ' + e.message);
+      return;
+    }
+    video.srcObject = stream;
+    try { await video.play(); } catch (e) { copyNeeded = false; showFail('تعذّر تشغيل الفيديو: ' + e.message); return; }
+    track = stream.getVideoTracks()[0];
+    caps = (track.getCapabilities && track.getCapabilities()) || {};
+    const canComp = !!caps.exposureCompensation;
+    const canLong = !!(caps.exposureTime && (caps.exposureMode || []).includes('manual'));
+    $('expA').hidden = !canComp; $('expB').hidden = !canLong;
+    $('expRow').hidden = !(canComp || canLong);
+    applyExposure();
+    T = 640; setupSize();
+    $('intro').hidden = true; setMsg(''); $('copyLink').hidden = true;
+    ['snap', 'flip', 'orig'].forEach(i => $(i).disabled = false);
+    running = true; frames = 0; t0 = performance.now();
+    const s = ++sid; loop(s);
+  }
+
+  function stopStream() {
+    running = false; sid++;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+
+  function applyExposure() {
+    if (!track) return;
+    const modes = caps.exposureMode || [];
+    const comp = $('exp').checked, long = $('long').checked, adv = {};
+    if (long && caps.exposureTime && modes.includes('manual')) {
+      adv.exposureMode = 'manual';
+      adv.exposureTime = Math.min(caps.exposureTime.max, 667);   // نحو 1/15 ثانية (الوحدة 100 ميكروثانية)
+      if (caps.iso) adv.iso = Math.round(caps.iso.min + (caps.iso.max - caps.iso.min) * 0.85);
+    } else {
+      if (modes.includes('continuous')) adv.exposureMode = 'continuous';
+      if (caps.exposureCompensation) {
+        const c = caps.exposureCompensation;
+        adv.exposureCompensation = comp ? c.max : Math.min(Math.max(0, c.min), c.max);
+      }
+    }
+    if (Object.keys(adv).length) track.applyConstraints({ advanced: [adv] }).catch(() => {});
+  }
+
+  function adapt(minFps) {                       // خفّض الدقة تلقائيًا إن كان الجهاز بطيئًا
+    if (++frames < 40) return;
+    const now = performance.now(), fps = frames * 1000 / (now - t0);
+    frames = 0; t0 = now;
+    if (fps < minFps && T > 320) { T = Math.max(320, Math.round(T * 0.8 / 8) * 8); setupSize(); }
+  }
+
+  function loop(s) {
+    if (s !== sid || !running) return;
+    requestAnimationFrame(() => loop(s));
+    if (video.readyState < 2) return;
+    if (S.engine === 'sci' && sciSess) { sciFrame(); return; }
+    wctx.save();
+    if (facing === 'user') { wctx.translate(W, 0); wctx.scale(-1, 1); }
+    wctx.drawImage(video, 0, 0, W, H);
+    wctx.restore();
+    const img = wctx.getImageData(0, 0, W, H);
+    if (!S.orig) process(img.data);
+    octx.putImageData(img, 0, 0);
+    adapt(15);
+  }
+
+  /* ---------- الأزرار ---------- */
+  $('start').addEventListener('click', start);
+  $('flip').addEventListener('click', () => { facing = facing === 'user' ? 'environment' : 'user'; start(); });
+  $('exp').addEventListener('change', applyExposure);
+  $('long').addEventListener('change', applyExposure);
+  video.addEventListener('resize', () => { if (running) setupSize(); });
+  window.addEventListener('pagehide', stopStream);
+
+  $('snap').addEventListener('click', () => {
+    out.toBlob(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b); a.download = 'night-' + Date.now() + '.jpg';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }, 'image/jpeg', 0.92);
+  });
+
+  const orig = $('orig');
+  const holdOn = () => { S.orig = true; orig.classList.add('on'); };
+  const holdOff = () => { S.orig = false; orig.classList.remove('on'); };
+  orig.addEventListener('pointerdown', holdOn);
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(e => orig.addEventListener(e, holdOff));
+  orig.addEventListener('contextmenu', e => e.preventDefault());
+})();
+</script>
+</body>
+</html>
